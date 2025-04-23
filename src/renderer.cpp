@@ -123,6 +123,7 @@ void Renderer::env_map() {
     // TODO: Implement
 }
 
+
 Vec3 Renderer::illuminance(const IntersectionOut &surface, int max_depth,
                            const std::vector<obj_pointer> &shapes,
                            Random &random_generator) {
@@ -134,8 +135,8 @@ Vec3 Renderer::illuminance(const IntersectionOut &surface, int max_depth,
 
     // Else pick random vector according to material
     // TODO: Implement BRDF
-    Ray wi = surface.hit_mat->sample_wi(surface.w0, surface.point, surface.normal,
-                                          random_generator);
+    Ray wi = surface.hit_mat->sample_wi(surface.w0, surface.point,
+                                        surface.normal, random_generator);
     if (wi.direction == Vec3(0, 0, 0))
         return Le;
 
@@ -145,16 +146,23 @@ Vec3 Renderer::illuminance(const IntersectionOut &surface, int max_depth,
     Vec3 Li = Vec3(0, 0, 0);
     Vec3 Fr = surface.hit_mat->Fr(wi, surface.w0, surface.normal);
 
+    // Russian Roulette threshold
+    // TODO: Try using approximated variance to calculate
+    //
+    // Use larger number of samples to remove "sparkles"
+    float p = std::max(Fr.x, std::max(Fr.y, Fr.z));
+
     // Calculate luminance of hit point else assume no light
     if (details.hit) {
+        // Darker light -> More chance of skipping
+        if (random_generator.GenerateUniformFloat() > p)
+            return Le;
         Li = illuminance(details, max_depth - 1, shapes, random_generator);
-    }
-    else
-    {
+    } else {
         Li = Vec3(0.1f, 0.5f, 0.9f);
     }
-    
-    Vec3 Lr = Fr * Li;
+
+    Vec3 Lr = Fr * Li / p;
 
     // Return monte-carlo sample
     return Le + Lr;

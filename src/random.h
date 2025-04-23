@@ -34,6 +34,19 @@ class Random {
      *******************************************/
     Vec3 GenerateUniformPointSphere();
 
+
+ /*******************************************
+     * Generate a point cosine weighted unit sphere
+     * @return A random point on the unit sphere with higher probability near the normal
+     *******************************************/
+    Vec3 GenerateCosineWeightedUniformPointSphere(const Vec3 & n);
+/*******************************************
+     * Generate a Ray towards an direction with importance sampling
+     * @return A ray on some random direction 
+     *******************************************/
+    Ray sample_wi(const Ray &wo, const Vec3 &at, const Vec3 &n, Random &random_gen, float refractive_index, float roughness);
+
+    
     /**********************************************************************
      * Generate a random point on a unit hemisphere with specified 'central
      * normal'
