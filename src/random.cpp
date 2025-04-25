@@ -85,59 +85,50 @@ Vec3 Random::GenerateCosineWeightedUniformPointSphere(const Vec3 & n){
     return m * ret;
 }
 
-Ray Random::sample_wi(const Ray &wo, const Vec3 &at, const Vec3 &n, Random &random_gen, float refractive_index, float roughness) {
-   
-    auto clamp = [](float value, float min, float max) {
-        return (value < min) ? min : (value > max) ? max : value;
-    };
+/**
+ * @brief Generates an importance-sampled half-vector using the GGX distribution.
+ * 
+ * This function samples a half-vector `h` from the GGX microfacet distribution. 
+ * The distribution is used in physically-based rendering for sampling specular reflection 
+ * based on roughness and the angle between the surface normal and the incoming light.
+ * 
+ * @param n The surface normal, which is used to align the sampled half-vector.
+ * @param roughness The roughness of the material, affecting the width of the GGX distribution.
+ * 
+ * @return Vec3 The generated half-vector in world space, normalized.
+ */
 
- 
-    float cos_theta_o = clamp(dot(wo.direction, n), -1.0f, 1.0f);
+Vec3 Random::GenerateImportanceSampleGGX(const Vec3& n, float roughness) {
+    std::uniform_real_distribution<float> distribution(0.0, 1.0);
+    float u1 = distribution(generator);
+    float u2 = distribution(generator);
 
-   
-    float r0 = pow((1 - refractive_index) / (1 + refractive_index), 2);
-    float F = r0 + (1 - r0) * pow(1 - fabs(cos_theta_o), 5);
+    float a2 = roughness * roughness;
+    float phi = 2.0f * M_PI * u1;
+    float cos_theta = sqrt((1 - u2) / (1 + (a2 - 1) * u2));
+    float sin_theta = sqrt(1 - cos_theta * cos_theta);
 
-    if (random_gen.GenerateUniformFloat() < F) {
-    
-        float phi = 2.0f * M_PI * random_gen.GenerateUniformFloat();
-        float r = random_gen.GenerateUniformFloat();
-        float a2 = roughness * roughness;
-        float cos_theta = sqrtf((1 - r) / (1 + (a2 - 1) * r));
-        float sin_theta = sqrtf(1 - cos_theta * cos_theta);
+    Vec3 ret = Vec3(sin_theta * cosf(phi), sin_theta * sinf(phi), cos_theta);
 
-      
-        Vec3 h_local(sin_theta * cosf(phi), sin_theta * sinf(phi), cos_theta);
+    Vec3 nn = n.normalized();  
+    float c1 = 1 / (1 + nn.z);
+    float c2 = nn.y * c1;
+    float c3 = nn.x * c1;
 
-       
-        Vec3 nn = n.normalized();
-        float c1 = 1.0f / (1.0f + nn.z);
-        float c2 = nn.y * c1;
-        float c3 = nn.x * c1;
+    Mat3 m;
+    m[0][0] = 1 - nn.x * c3;
+    m[0][1] = -nn.x * c2;
+    m[0][2] = nn.x;
+    m[1][0] = -nn.x * c2;
+    m[1][1] = 1 - nn.y * c2;
+    m[1][2] = nn.y;
+    m[2][0] = -nn.x;
+    m[2][1] = -nn.y;
+    m[2][2] = nn.z;
 
-        Mat3 m;
-        m[0][0] = 1 - nn.x * c3;
-        m[0][1] = -nn.x * c2;
-        m[0][2] = nn.x;
-        m[1][0] = -nn.x * c2;
-        m[1][1] = 1 - nn.y * c2;
-        m[1][2] = nn.y;
-        m[2][0] = -nn.x;
-        m[2][1] = -nn.y;
-        m[2][2] = nn.z;
-
-        Vec3 h = m * h_local;
-        Ray reflected_dir = reflect(wo, h,n);
-
-      
-        return reflected_dir; 
-    } else {
-     
-        Vec3 dir = random_gen.GenerateCosineWeightedUniformPointSphere(n);
-
-        return Ray(at, normalize(dir)); 
-    }
+    return m * ret;
 }
+
 
 
 /*****************************
